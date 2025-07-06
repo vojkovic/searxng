@@ -12,10 +12,10 @@ Metadata`_.  A request is filtered out in case of:
 .. _Fetch Metadata:
    https://developer.mozilla.org/en-US/docs/Glossary/Fetch_metadata_request_header
 
-.. Sec-Fetch-Dest:
+.. _Sec-Fetch-Dest:
    https://developer.mozilla.org/en-US/docs/Web/API/Request/destination
 
-.. Sec-Fetch-Mode:
+.. _Sec-Fetch-Mode:
    https://developer.mozilla.org/en-US/docs/Web/API/Request/mode
 
 
@@ -81,6 +81,12 @@ def filter_request(
     request: SXNG_Request,
     cfg: config.Config,
 ) -> werkzeug.Response | None:
+
+    if not request.is_secure:
+        logger.warning(
+            "Sec-Fetch cannot be verified for non-secure requests (HTTP headers are not set/sent by the client)."
+        )
+        return None
 
     # Only check Sec-Fetch headers for supported browsers
     user_agent = request.headers.get('User-Agent', '')

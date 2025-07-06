@@ -10,6 +10,7 @@ from __future__ import annotations
 __all__ = ["ExpireCacheCfg", "ExpireCacheStats", "ExpireCache", "ExpireCacheSQLite"]
 
 import abc
+from collections.abc import Iterator
 import dataclasses
 import datetime
 import hashlib
@@ -42,7 +43,7 @@ class ExpireCacheCfg(msgspec.Struct):  # pylint: disable=too-few-public-methods
     DB will be created in `/tmp/sxng_cache_{self.name}.db`"""
 
     MAX_VALUE_LEN: int = 1024 * 10
-    """Max lenght of a *serialized* value."""
+    """Max length of a *serialized* value."""
 
     MAXHOLD_TIME: int = 60 * 60 * 24 * 7  # 7 days
     """Hold time (default in sec.), after which a value is removed from the cache."""
@@ -80,7 +81,7 @@ class ExpireCacheCfg(msgspec.Struct):  # pylint: disable=too-few-public-methods
 
 @dataclasses.dataclass
 class ExpireCacheStats:
-    """Dataclass wich provides information on the status of the cache."""
+    """Dataclass which provides information on the status of the cache."""
 
     cached_items: dict[str, list[tuple[str, typing.Any, int]]]
     """Values in the cache mapped by context name.
@@ -226,7 +227,7 @@ class ExpireCacheSQLite(sqlitedb.SQLiteAppl, ExpireCache):
     # The key/value tables will be created on demand by self.create_table
     DDL_CREATE_TABLES = {}
 
-    CACHE_TABLE_PREFIX = "CACHE-TABLE-"
+    CACHE_TABLE_PREFIX = "CACHE-TABLE"
 
     def __init__(self, cfg: ExpireCacheCfg):
         """An instance of the SQLite expire cache is build up from a
@@ -395,6 +396,20 @@ class ExpireCacheSQLite(sqlitedb.SQLiteAppl, ExpireCache):
             return default
 
         return self.deserialize(row[0])
+
+    def pairs(self, ctx: str) -> Iterator[tuple[str, typing.Any]]:
+        """Iterate over key/value pairs from table given by argument ``ctx``.
+        If ``ctx`` argument is ``None`` (the default), a table name is
+        generated from the :py:obj:`ExpireCacheCfg.name`."""
+        table = ctx
+        self.maintenance()
+
+        if not table:
+            table = self.normalize_name(self.cfg.name)
+
+        if table in self.table_names:
+            for row in self.DB.execute(f"SELECT key, value FROM {table}"):
+                yield row[0], self.deserialize(row[1])
 
     def state(self) -> ExpireCacheStats:
         cached_items = {}

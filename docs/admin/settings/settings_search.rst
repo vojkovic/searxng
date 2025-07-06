@@ -41,10 +41,12 @@
   - ``duckduckgo``
   - ``google``
   - ``mwmbl``
+  - ``naver``
   - ``quark``
   - ``qwant``
   - ``seznam``
   - ``sogou``
+  - ``startpage``
   - ``stract``
   - ``swisscows``
   - ``wikipedia``
