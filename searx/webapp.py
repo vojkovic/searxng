@@ -1312,7 +1312,6 @@ def config():
             'limiter': {
                 'enabled': limiter.is_installed(),
                 'botdetection.ip_limit.link_token': _limiter_cfg.get('botdetection.ip_limit.link_token'),
-                'botdetection.ip_lists.pass_searxng_org': _limiter_cfg.get('botdetection.ip_lists.pass_searxng_org'),
             },
             'doi_resolvers': list(settings['doi_resolvers'].keys()),
             'default_doi_resolver': settings['default_doi_resolver'],

@@ -34,7 +34,3 @@ pass_ip = [
   # '192.168.0.0/16',      # IPv4 private network
   # 'fe80::/10'            # IPv6 linklocal / wins over botdetection.ip_limit.filter_link_local
 ]
-
-# Activate passlist of (hardcoded) IPs from the SearXNG organization,
-# e.g. `check.searx.space`.
-pass_searxng_org = true

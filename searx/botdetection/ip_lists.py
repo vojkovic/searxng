@@ -32,6 +32,8 @@ from ipaddress import (
     IPv6Address,
 )
 
+from searx import settings
+
 from . import config
 from ._helpers import logger
 
@@ -50,11 +52,11 @@ def pass_ip(real_ip: IPv4Address | IPv6Address, cfg: config.Config) -> Tuple[boo
     ``botdetection.ip_lists.pass_ip`` list.
     """
 
-    if cfg.get('botdetection.ip_lists.pass_searxng_org', default=True):
+    if settings['server']['public_instance']:
         for net in SEARXNG_ORG:
             net = ip_network(net, strict=False)
             if real_ip.version == net.version and real_ip in net:
-                return True, f"IP matches {net.compressed} in SEARXNG_ORG list."
+                return True, f"IP {real_ip.compressed} matches {net.compressed} in SEARXNG_ORG list."
     return ip_is_subnet_of_member_in_list(real_ip, 'botdetection.ip_lists.pass_ip', cfg)
 
 
