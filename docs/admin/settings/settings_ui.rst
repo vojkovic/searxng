@@ -51,6 +51,8 @@
 ``theme_args.simple_style``:
   Style of simple theme: ``auto``, ``light``, ``dark``, ``black``
 
+  The ``suckless`` theme is dark-only and does not use ``simple_style``.
+
 ``results_on_new_tab``:
   Open result links in a new tab by default.
 

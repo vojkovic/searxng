@@ -1,0 +1,5 @@
+{%- set body_class = "page_with_header" -%}
+{%- extends "suckless/base.html" -%}
+{%- block header -%}
+  <p class="sx-page-back"><a href="{{ url_for('index') }}">&lt; {{ _('home') }}</a></p>
+{%- endblock -%}

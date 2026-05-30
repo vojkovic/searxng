@@ -12,10 +12,13 @@ vite.:  .. to be done ..
     fix:   run prettiers on simple theme
     lint:  run linters on simple theme
     dev:   start development server
+  suckless.:
+    build: build static files of the suckless theme
 EOF
 }
 
 VITE_SIMPLE_THEME="${REPO_ROOT}/client/simple"
+VITE_SUCKLESS_THEME="${REPO_ROOT}/client/suckless"
 
 # ToDo: vite server is not implemented yet / will be done in a follow up PR
 #
@@ -72,6 +75,22 @@ vite.simple.lint() {
         set -e
         node.env
         npm --prefix client/simple run lint
+    )
+}
+
+vite.suckless.build() {
+    (
+        set -e
+        templates.simple.pygments
+        cp -f "${VITE_SIMPLE_THEME}/generated/pygments.less" "${VITE_SUCKLESS_THEME}/generated/pygments.less"
+
+        node.env
+        build_msg SUCKLESS "run build of theme from: ${VITE_SUCKLESS_THEME}"
+
+        pushd "${VITE_SUCKLESS_THEME}"
+        npm install
+        npm run build
+        popd &>/dev/null
     )
 }
 

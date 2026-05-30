@@ -6,6 +6,9 @@ STATIC_BUILT_PATHS=(
     'searx/templates/simple/icons.html'
     'searx/static/themes/simple'
     'client/simple/package-lock.json'
+    'searx/templates/suckless/icons.html'
+    'searx/static/themes/suckless'
+    'client/suckless/package-lock.json'
 )
 
 static.help() {

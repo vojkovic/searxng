@@ -1,0 +1,18 @@
+<fieldset>{{- '' -}}
+  <legend id="pref_theme">{{- _('Theme') -}}</legend>{{- '' -}}
+  <div class="value">{{- '' -}}
+    <select name="theme" aria-labelledby="pref_theme">{{- '' -}}
+      {%- for name in themes -%}
+        <option value="{{ name }}"
+                {%- if name == theme %} selected="selected"{%- endif -%}>
+                {{- name | capitalize -}}
+        </option>
+      {%- endfor -%}
+    </select>{{- '' -}}
+  </div>{{- '' -}}
+  <div class="description">
+    {{- _('Change the layout of SearXNG') -}}
+  </div>{{- '' -}}
+</fieldset>{{- '' -}}
+
+{%- include 'suckless/preferences/center_alignment.html' -%}

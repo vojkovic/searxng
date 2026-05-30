@@ -1,0 +1,7 @@
+{% extends "suckless/base.html" %}
+{% block content %}
+<div class="index">
+  <div class="title"><h1>{{ instance_name }}</h1></div>
+  {% include 'suckless/simple_search.html' %}
+</div>
+{% endblock %}

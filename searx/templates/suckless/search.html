@@ -1,0 +1,21 @@
+<form id="search" method="{{ method or 'POST' }}" action="{{ url_for('search') }}" role="search">
+  <div id="search_header">
+    <div id="search_view">
+      <div class="search_box">
+        <input id="q" name="q" type="text" placeholder="{{ _('Search for...') }}" tabindex="1" autocomplete="off" autocapitalize="none" spellcheck="false" autocorrect="off" dir="auto" value="{{ q or '' }}" aria-label="{{ _('Search') }}">
+        <button id="clear_search" type="reset" class="sx-search-btn" aria-label="{{ _('clear') }}">×</button>
+        <button id="send_search" type="submit" class="sx-search-btn" {%- if search_on_category_select -%}name="category_{{ selected_categories[0]|replace(' ', '_') }}"{%- endif -%} aria-label="{{ _('search') }}">↵</button>
+        <div class="autocomplete hide_if_nojs"><ul></ul></div>
+      </div>
+    </div>
+    {% set display_tooltip = true %}
+    {% include 'suckless/categories.html' %}
+  </div>
+  <div class="search_filters">
+    {% include 'suckless/filters/languages.html' %}
+    {% include 'suckless/filters/time_range.html' %}
+    {% include 'suckless/filters/safesearch.html' %}
+  </div>
+  <input type="hidden" name="theme" value="{{ theme }}">
+  {% if timeout_limit %}<input type="hidden" name="timeout_limit" value="{{ timeout_limit|e }}">{% endif %}
+</form>

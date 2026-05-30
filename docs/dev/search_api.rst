@@ -98,7 +98,7 @@ Parameters
   supports safe search in the preferences page of an instance.
 
 ``theme`` : default ``simple``
-  [ ``simple`` ]
+  [ ``simple``, ``suckless`` ]
 
   Theme of instance.
 

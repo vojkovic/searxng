@@ -374,7 +374,9 @@ def get_client_settings():
         'search_on_category_select': req_pref.get_value('search_on_category_select'),
         'hotkeys': req_pref.get_value('hotkeys'),
         'url_formatting': req_pref.get_value('url_formatting'),
-        'theme_static_path': custom_url_for('static', filename='themes/simple'),
+        'theme_static_path': custom_url_for(
+            'static', filename=f"themes/{req_pref.get_value('theme')}"
+        ),
         'results_on_new_tab': req_pref.get_value('results_on_new_tab'),
         'favicon_resolver': req_pref.get_value('favicon_resolver'),
         'advanced_search': req_pref.get_value('advanced_search'),
