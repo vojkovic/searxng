@@ -1,185 +1,139 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""This is the implementation of the Google Videos engine.
+"""Google Videos via WML HTML UI."""
 
-.. admonition:: Content-Security-Policy (CSP)
-
-   This engine needs to allow images from the `data URLs`_ (prefixed with the
-   ``data:`` scheme)::
-
-     Header set Content-Security-Policy "img-src 'self' data: ;"
-
-.. _data URLs:
-   https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
-"""
+import random
 import re
-from urllib.parse import urlencode, urlparse, parse_qs, unquote
-from lxml import html
+from urllib.parse import parse_qs, unquote, urlencode, urlparse
 
-from searx.utils import (
-    eval_xpath_list,
-    eval_xpath_getindex,
-    extract_text,
-)
+from lxml import html
 
 from searx.engines.google import fetch_traits  # pylint: disable=unused-import
 from searx.engines.google import (
     get_google_info,
     time_range_dict,
     filter_mapping,
-    suggestion_xpath,
     detect_google_sorry,
-    ui_async,
+    nokia_useragents,
 )
-from searx.utils import get_embeded_stream_url
+from searx.utils import (
+    eval_xpath_getindex,
+    eval_xpath_list,
+    extract_text,
+    get_embeded_stream_url,
+)
 
 # about
 about = {
-    "website": 'https://www.google.com',
-    "wikidata_id": 'Q219885',
-    "official_api_documentation": 'https://developers.google.com/custom-search',
+    "website": "https://www.google.com",
+    "wikidata_id": "Q219885",
+    "official_api_documentation": "https://developers.google.com/custom-search",
     "use_official_api": False,
     "require_api_key": False,
-    "results": 'HTML',
+    "results": "HTML",
 }
 
 # engine dependent config
-categories = ['videos', 'web']
+categories = ["videos", "web"]
 paging = True
 max_page = 50
+"""`Google max 50 pages`_
+
+.. _Google max 50 pages: https://github.com/searxng/searxng/issues/2982
+"""
 language_support = True
 time_range_support = True
 safesearch = True
 
-
-# =26;[3,"dimg_ZNMiZPCqE4apxc8P3a2tuAQ_137"]a87;data:image/jpeg;base64,/9j/4AAQSkZJRgABA
-# ...6T+9Nl4cnD+gr9OK8I56/tX3l86nWYw//2Q==26;
-RE_DATA_IMAGE = re.compile(r'"(dimg_[^"]*)"[^;]*;(data:image[^;]*;[^;]*);?')
-
-
-def parse_data_images(text: str):
-    data_image_map = {}
-
-    for img_id, data_image in RE_DATA_IMAGE.findall(text):
-        end_pos = data_image.rfind("=")
-        if end_pos > 0:
-            data_image = data_image[: end_pos + 1]
-        data_image_map[img_id] = data_image
-    logger.debug("data:image objects --> %s", list(data_image_map.keys()))
-    return data_image_map
+_duration_re = re.compile(r"^\d+:\d+")
 
 
 def request(query, params):
     """Google-Video search request"""
+
     google_info = get_google_info(params, traits)
-    start = (params['pageno'] - 1) * 10
+    start = (params["pageno"] - 1) * 10
+
+    args = {"q": query, "tbm": "vid", **google_info["params"]}
+    if start:
+        args["start"] = start
 
     query_url = (
-        'https://'
-        + google_info['subdomain']
-        + '/search'
-        + "?"
-        + urlencode(
-            {
-                'q': query,
-                'tbm': "vid",
-                'start': start,
-                **google_info['params'],
-                'asearch': 'arc',
-                'async': ui_async(start),
-            }
-        )
+        "https://" + google_info["subdomain"] + "/wml/search" + "?" + urlencode(args)
     )
 
-    if params['time_range'] in time_range_dict:
-        query_url += '&' + urlencode({'tbs': 'qdr:' + time_range_dict[params['time_range']]})
-    if 'safesearch' in params:
-        query_url += '&' + urlencode({'safe': filter_mapping[params['safesearch']]})
-    params['url'] = query_url
+    if params["time_range"] in time_range_dict:
+        query_url += "&" + urlencode(
+            {"tbs": "qdr:" + time_range_dict[params["time_range"]]}
+        )
+    if params["safesearch"]:
+        query_url += "&" + urlencode({"safe": filter_mapping[params["safesearch"]]})
+    params["url"] = query_url
 
-    params['cookies'] = google_info['cookies']
-    params['headers'].update(google_info['headers'])
+    params["headers"] = {"User-Agent": random.choice(nokia_useragents)}
     return params
 
 
 def response(resp):
     """Get response from google's search request"""
     results = []
-
     detect_google_sorry(resp)
-    data_image_map = parse_data_images(resp.text)
 
-    # convert the text to dom
-    dom = html.fromstring(resp.text)
+    # convert the text to dom (remove xml declaration for lxml)
+    text = resp.text
+    if text.lstrip().startswith("<?xml"):
+        text = text.split("?>", 1)[-1]
+    dom = html.fromstring(text)
 
-    result_divs = eval_xpath_list(dom, '//div[contains(@class, "MjjYud")]')
-
-    # parse results
-    for result in result_divs:
+    for result in eval_xpath_list(dom, '//div[contains(@class, "zMzFAb")]'):
         title = extract_text(
-            eval_xpath_getindex(result, './/h3[contains(@class, "LC20lb")] | .//div[@role="heading"]', 0, default=None),
-            allow_none=True,
-        )
-        url = eval_xpath_getindex(
-            result, './/a[@jsname="UWckNb"]/@href | .//a[contains(@href, "/url?q=")]/@href', 0, default=None
-        )
-        if url and url.startswith('/url?q='):
-            url = unquote(url[7:].split('&sa=U')[0])
-
-        content = extract_text(
-            eval_xpath_getindex(result, './/div[contains(@class, "ITZIwc")]', 0, default=None), allow_none=True
-        )
-        pub_info = extract_text(
             eval_xpath_getindex(
-                result, './/div[contains(@class, "gqF9jc")] | .//div[contains(@class, "WRu9Cd")]', 0, default=None
+                result,
+                './/a[contains(@class, "fuLhoc")]//span[contains(@class, "CVA68e")]',
+                0,
+                default=None,
             ),
             allow_none=True,
         )
-        # Broader XPath to find any <img> element
-        thumbnail = eval_xpath_getindex(result, './/img/@src', 0, default=None)
-        duration = extract_text(
-            eval_xpath_getindex(result, './/span[contains(@class, "k1U36b")]', 0, default=None), allow_none=True
+        raw_url = eval_xpath_getindex(
+            result, './/a[contains(@class, "fuLhoc")]/@href', 0, default=None
         )
-        video_id = eval_xpath_getindex(result, './/div[@jscontroller="rTuANe"]/@data-vid', 0, default=None)
+        if not title or not raw_url:
+            continue
 
-        # Fallback for video_id from URL if not found via XPath
-        if not video_id and url and 'youtube.com' in url:
-            parsed_url = urlparse(url)
-            video_id = parse_qs(parsed_url.query).get('v', [None])[0]
+        if raw_url.startswith("/url?q="):
+            url = unquote(raw_url[7:].split("&sa=U")[0])
+        else:
+            url = raw_url
 
-        # Handle thumbnail
-        if thumbnail and thumbnail.startswith('data:image'):
-            img_id = eval_xpath_getindex(result, './/img/@id', 0, default=None)
-            if img_id and img_id in data_image_map:
-                thumbnail = data_image_map[img_id]
-            else:
-                thumbnail = None
+        thumbnail = eval_xpath_getindex(
+            result,
+            './/img[contains(@src, "ytimg") or contains(@src, "encrypted-tbn")]/@src',
+            0,
+            default=None,
+        )
+        length = None
+        for span in eval_xpath_list(result, './/span[contains(@class, "YVIcad")]'):
+            candidate = extract_text(span) or ""
+            if _duration_re.match(candidate):
+                length = candidate
+                break
+
+        video_id = None
+        if "youtube.com" in url:
+            video_id = parse_qs(urlparse(url).query).get("v", [None])[0]
         if not thumbnail and video_id:
             thumbnail = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
 
-        # Handle video embed URL
-        embed_url = None
-        if video_id:
-            embed_url = get_embeded_stream_url(f"https://www.youtube.com/watch?v={video_id}")
-        elif url:
-            embed_url = get_embeded_stream_url(url)
-
-        # Only append results with valid title and url
-        if title and url:
-            results.append(
-                {
-                    'url': url,
-                    'title': title,
-                    'content': content or '',
-                    'author': pub_info,
-                    'thumbnail': thumbnail,
-                    'length': duration,
-                    'iframe_src': embed_url,
-                    'template': 'videos.html',
-                }
-            )
-
-    # parse suggestion
-    for suggestion in eval_xpath_list(dom, suggestion_xpath):
-        results.append({'suggestion': extract_text(suggestion)})
+        results.append(
+            {
+                "url": url,
+                "title": title,
+                "content": "",
+                "thumbnail": thumbnail,
+                "length": length,
+                "iframe_src": get_embeded_stream_url(url),
+                "template": "videos.html",
+            }
+        )
 
     return results

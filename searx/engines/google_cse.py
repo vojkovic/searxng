@@ -114,10 +114,6 @@ def request(query: str, params: "OnlineParams") -> None:
         start_date, end_date = _get_start_and_end_date_str(params["time_range"])
         args["sort"] = f"date:r:{start_date}:{end_date}"
 
-    if info.get("lr"):
-        args["lr"] = info["lr"]
-    if info.get("cr"):
-        args["cr"] = info["cr"]
     if google_info["country"] not in (None, "ZZ"):
         args["gl"] = google_info["country"]
     if token["exp"]:
