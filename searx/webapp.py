@@ -803,7 +803,7 @@ def info(pagename, locale):
     )
 
 
-@app.route('/autocompleter', methods=['GET', 'POST'])
+@app.route('/autocompleter', methods=['GET'])
 def autocompleter():
     """Return autocompleter results"""
 
@@ -851,7 +851,6 @@ def autocompleter():
         suggestions = json.dumps([sug_prefix, results, [], [], relevances])
         mimetype = 'application/x-suggestions+json'
 
-    suggestions = escape(suggestions, False)
     return Response(suggestions, mimetype=mimetype)
 
 
