@@ -242,24 +242,14 @@ def _extract_published_date(published_date_raw: str | None):
 
 
 def extract_json_data(text: str) -> dict[str, t.Any]:
-    # Example script source containing the data:
-    #
-    # kit.start(app, element, {
-    #    node_ids: [0, 19],
-    #    data: [{type:"data",data: .... ["q","goggles_id"],route:1,url:1}}]
-    #          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    text = text[text.index("<script") : text.index("</script")]
-    if not text:
-        raise ValueError("can't find JS/JSON data in the given text")
+    """Parse the ``kit.start(..., { data: [{...}] })`` blob from Brave's HTML.
+
+    Brave may inject other ``<script>`` tags before that blob, so search for
+    ``data: [{`` instead of taking the first script on the page.
+    """
     start = text.index("data: [{")
-    end = text.rindex("}}]")
-    js_obj_str = text[start:end]
-    js_obj_str = "{" + js_obj_str + "}}]}"
-    # js_obj_str = js_obj_str.replace("\xa0", "")  # remove ASCII for &nbsp;
-    # js_obj_str = js_obj_str.replace(r"\u003C", "<").replace(r"\u003c", "<")  # fix broken HTML tags in strings
-    json_str = js_obj_str_to_json_str(js_obj_str)
-    data: dict[str, t.Any] = json.loads(json_str)
-    return data
+    chunk = text[start : text.index("</script", start)]
+    return json.loads(js_obj_str_to_json_str("{" + chunk[: chunk.rindex("}}]")] + "}}]}"))
 
 
 def response(resp: SXNG_Response) -> EngineResults:
@@ -267,22 +257,14 @@ def response(resp: SXNG_Response) -> EngineResults:
     if brave_category in ("search", "goggles"):
         return _parse_search(resp)
 
-    if brave_category in ("news"):
-        return _parse_news(resp)
+    page = extract_json_data(resp.text)["data"][1]["data"]
 
-    # Example script source containing the data:
-    #
-    # kit.start(app, element, {
-    #    node_ids: [0, 19],
-    #    data: [{type:"data",data: .... ["q","goggles_id"],route:1,url:1}}]
-    #          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    json_data: dict[str, t.Any] = extract_json_data(resp.text)
-    json_resp: dict[str, t.Any] = json_data["data"][1]["data"]["body"]["response"]
-
+    if brave_category == "news":
+        return _parse_news(page["response"]["news"])
     if brave_category == "images":
-        return _parse_images(json_resp)
+        return _parse_images(page["body"]["response"])
     if brave_category == "videos":
-        return _parse_videos(json_resp)
+        return _parse_videos(page["body"]["response"])
 
     raise ValueError(f"Unsupported brave category: {brave_category}")
 
@@ -350,51 +332,40 @@ def _parse_search(resp: SXNG_Response) -> EngineResults:
     return res
 
 
-def _parse_news(resp: SXNG_Response) -> EngineResults:
+def _parse_news(json_news: dict[str, t.Any]) -> EngineResults:
     res = EngineResults()
-    dom = html.fromstring(resp.text)
-
-    for result in eval_xpath_list(dom, "//div[contains(@class, 'results')]//div[@data-type='news']"):
-        url = eval_xpath_getindex(result, ".//a[contains(@class, 'result-header')]/@href", 0, default=None)
-        if url is None:
-            continue
-
-        title = eval_xpath_list(result, ".//span[contains(@class, 'snippet-title')]")
-        content = eval_xpath_list(result, ".//p[contains(@class, 'desc')]")
-        thumbnail = eval_xpath_getindex(result, ".//div[contains(@class, 'image-wrapper')]//img/@src", 0, default="")
-
-        item = res.types.LegacyResult(
-            template="default.html",
-            url=url,
-            title=extract_text(title),
-            thumbnail=thumbnail,
-            content=extract_text(content),
+    for result in json_news["results"]:
+        res.add(
+            res.types.LegacyResult(
+                template="default.html",
+                url=result["url"],
+                title=result["title"],
+                content=result.get("description", ""),
+                thumbnail=(result.get("thumbnail") or {}).get("src", ""),
+                publishedDate=_extract_published_date(result.get("age")),
+            )
         )
-        res.add(item)
-
     return res
 
 
 def _parse_images(json_resp: dict[str, t.Any]) -> EngineResults:
     res = EngineResults()
-
     for result in json_resp["results"]:
-        item = res.types.LegacyResult(
-            template="images.html",
-            url=result["url"],
-            title=result["title"],
-            source=result["source"],
-            img_src=result["properties"]["url"],
-            thumbnail_src=result["thumbnail"]["src"],
+        res.add(
+            res.types.LegacyResult(
+                template="images.html",
+                url=result["url"],
+                title=result["title"],
+                source=result["source"],
+                img_src=result["properties"]["url"],
+                thumbnail_src=(result.get("thumbnail") or {}).get("src", ""),
+            )
         )
-        res.add(item)
-
     return res
 
 
 def _parse_videos(json_resp: dict[str, t.Any]) -> EngineResults:
     res = EngineResults()
-
     for result in json_resp["results"]:
         item = res.types.LegacyResult(
             template="videos.html",
@@ -404,12 +375,9 @@ def _parse_videos(json_resp: dict[str, t.Any]) -> EngineResults:
             length=result["video"]["duration"],
             duration=result["video"]["duration"],
             publishedDate=_extract_published_date(result["age"]),
+            thumbnail=(result.get("thumbnail") or {}).get("src"),
         )
-        if result["thumbnail"] is not None:
-            item["thumbnail"] = result["thumbnail"]["src"]
-
         res.add(item)
-
     return res
 
 
