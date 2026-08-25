@@ -52,7 +52,9 @@ def _obtain_x_sid() -> tuple[str, str]:
     The header key is usually called `x-sid-{UUIDv4}`, and the value is
     usually a plain UUIDv4 (but a different one than in the header key).
     """
-    resp = get(f"{api_url}/revcontent/embed.js", headers={"User-Agent": gen_useragent()})
+    resp = get(
+        f"{api_url}/revcontent/embed.js", headers={"User-Agent": gen_useragent(), "Referer": "https://tusksearch.com/"}
+    )
     if not resp.ok:
         raise SearxEngineAPIException("failed to obtain request x-sid token")
 
