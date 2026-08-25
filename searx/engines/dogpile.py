@@ -44,7 +44,7 @@ def setup(_: dict[str, t.Any]) -> bool | None:
 def request(query: str, params: "OnlineParams"):
     params["url"] = f"{base_url}/api/{dogpile_categ}"
     params["headers"]["Origin"] = base_url
-
+    params["cookies"]["dp_api_token"] = "1"
     params["method"] = "POST"
     params["json"] = {"q": query, "qadf": safe_search_map[params["safesearch"]], "page": params["pageno"]}
 
