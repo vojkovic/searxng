@@ -8,7 +8,8 @@ import typing as t
 from datetime import datetime, timezone
 import html
 
-from searx.utils import format_duration, html_to_text, humanize_number
+from searx.network import get
+from searx.utils import extr, format_duration, html_to_text, humanize_number
 from searx.result_types import EngineResults
 
 if t.TYPE_CHECKING:
@@ -45,6 +46,8 @@ def request(query: str, params: "OnlineParams"):
     params["url"] = f"{base_url}/api/{dogpile_categ}"
     params["headers"]["Origin"] = base_url
     params["cookies"]["dp_api_token"] = "1"
+    if dogpile_categ == "images":
+        params["headers"]["x-dogpile-token"] = extr(get(f"{base_url}/images").text, '__DP_TOKEN__="', '"')
     params["method"] = "POST"
     params["json"] = {"q": query, "qadf": safe_search_map[params["safesearch"]], "page": params["pageno"]}
 
