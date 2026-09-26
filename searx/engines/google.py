@@ -24,6 +24,7 @@ from urllib.parse import unquote, urlencode
 import babel
 import babel.core
 import babel.languages
+from curl_cffi import CurlOpt
 from lxml import html
 
 from searx.enginelib.traits import EngineTraits
@@ -328,6 +329,7 @@ def google_request(
     params["url"] = f"https://www.google.com/wml/search?{urlencode(args)}"
     params["headers"]["User-Agent"] = random.choice(nokia_useragents)
     params["impersonate"] = "chrome99_android"
+    params["curl_options"] = {CurlOpt.SSL_SESSIONID_CACHE: 0}
 
 
 def request(query: str, params: "OnlineParams") -> None:
