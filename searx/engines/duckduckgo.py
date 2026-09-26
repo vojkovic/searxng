@@ -448,7 +448,6 @@ def request(query: str, params: "OnlineParams") -> None:
         data["df"] = t_range
         params["cookies"]["df"] = t_range
 
-    params["headers"]["Content-Type"] = "application/x-www-form-urlencoded"
     params["headers"]["Referer"] = ddg_url
 
     logger.debug("param headers: %s", params["headers"])
