@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 from datetime import datetime, timedelta
 from dateutil import parser
 
+from searx.network import get
 from searx.utils import (
     eval_xpath_list,
     eval_xpath_getindex,
@@ -65,10 +66,14 @@ def request(query, params):
 
 def response(resp):
     results = []
+    loc = resp.headers.get('location') or ''
+    host = loc.split('/')[2] if loc.startswith('https://') else ''
+    if resp.status_code == 302 and host.count('.') == 3 and not host.startswith('news.'):
+        resp = get(loc.replace(host, host.split('.')[0] + '.news.search.yahoo.com', 1), allow_redirects=False)
     dom = resp.html()
 
     # parse results
-    for result in eval_xpath_list(dom, '//ol[contains(@class,"searchCenterMiddle")]//li'):
+    for result in eval_xpath_list(dom, '//ol[contains(@class,"searchCenterMiddle")]//li[contains(@class,"ov-a")]'):
 
         url = eval_xpath_getindex(result, './/h4/a/@href', 0, None)
         if url is None:

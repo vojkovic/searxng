@@ -224,7 +224,9 @@ def response(resp: "SXNG_Response") -> EngineResults:
             title = extract_text(eval_xpath_getindex(result, ".//a/h3", 0, default=None), allow_none=True)
         if not title:
             continue
-        content = extract_text(eval_xpath_getindex(result, './/div[contains(@class, "compText")]', 0))
+        content = extract_text(
+            eval_xpath_getindex(result, './/div[contains(@class, "compText")]', 0, default=None), allow_none=True
+        ) or ""
         results.add(
             results.types.MainResult(
                 url=url,
