@@ -32,6 +32,9 @@ safesearch_map = {0: "off", 1: "moderate", 2: "strict"}
 
 results_per_page = 20
 
+retries = 2
+retry_on_http_error = [403, 503]
+
 _IMPORT_RE = re.compile(r"import\"(.*?)\";")
 _LANGUAGE_RE = re.compile(r"\{english:\".*?\",code_string:\"(.*?)\",code:\".*?\"\}")
 
