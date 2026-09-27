@@ -36,44 +36,18 @@ time_range_dict = {"day": "d", "week": "w", "month": "m"}
 safesearch_dict = {0: "p", 1: "i", 2: "r"}
 
 region2domain = {
-    "CO": "co.search.yahoo.com",  # Colombia
-    "TH": "th.search.yahoo.com",  # Thailand
-    "VE": "ve.search.yahoo.com",  # Venezuela
-    "CL": "cl.search.yahoo.com",  # Chile
-    "PE": "pe.search.yahoo.com",  # Peru
     "CA": "ca.search.yahoo.com",  # Canada
     "DE": "de.search.yahoo.com",  # Germany
     "FR": "fr.search.yahoo.com",  # France
     "GB": "uk.search.yahoo.com",  # United Kingdom
     "UK": "uk.search.yahoo.com",
-    "BR": "br.search.yahoo.com",  # Brazil
-    "IN": "in.search.yahoo.com",  # India
-    "ES": "espanol.search.yahoo.com",  # Espanol
-    "PH": "ph.search.yahoo.com",  # Philippines
-    "AR": "ar.search.yahoo.com",  # Argentina
-    "MX": "mx.search.yahoo.com",  # Mexico
-    "SG": "sg.search.yahoo.com",  # Singapore
-    "AU": "au.search.yahoo.com",  # Australia
-    "NZ": "nz.search.yahoo.com",  # New Zealand
+    "AU": "uk.search.yahoo.com",  # au.search.yahoo.com resets
     "IE": "ie.search.yahoo.com",  # Ireland
     "ZA": "za.search.yahoo.com",  # South Africa
     "US": "search.yahoo.com",
-    "IT": "it.search.yahoo.com",  # Italy
     "NL": "nl.search.yahoo.com",  # Netherlands
     "BE": "be.search.yahoo.com",  # Belgium
-    "CH": "ch.search.yahoo.com",  # Switzerland
-    "AT": "at.search.yahoo.com",  # Austria
-    "SE": "se.search.yahoo.com",  # Sweden
-    "NO": "no.search.yahoo.com",  # Norway
-    "DK": "dk.search.yahoo.com",  # Denmark
-    "FI": "fi.search.yahoo.com",  # Finland
-    "GR": "gr.search.yahoo.com",  # Greece
-    "TR": "tr.search.yahoo.com",  # Turkey
-    "MY": "malaysia.search.yahoo.com",  # Malaysia
-    "ID": "id.search.yahoo.com",  # Indonesia
-    "VN": "vn.search.yahoo.com",  # Vietnam
     "PL": "pl.search.yahoo.com",  # Poland
-    "RO": "ro.search.yahoo.com",  # Romania
 }
 
 yahoo_languages = {
@@ -195,9 +169,8 @@ def _yahoo_html(resp: "SXNG_Response") -> "SXNG_Response":
         if resp.status_code not in (302, 307) or not loc:
             return resp
 
-        # request ourselves instead of following it
         resp = get(
-            urljoin(resp.url, loc),
+            urljoin(resp.url, loc).replace("//au.search.yahoo.com", "//uk.search.yahoo.com", 1),
             cookies=cookies,
             headers=params["headers"],
             allow_redirects=False,
