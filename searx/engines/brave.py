@@ -122,6 +122,7 @@ import typing as t
 from collections.abc import Callable
 from urllib.parse import urlencode
 
+from curl_cffi import CurlOpt
 from dateutil import parser
 
 from searx import locales, logger
@@ -209,6 +210,7 @@ def request(query: str, params: dict[str, t.Any]) -> None:
 
     params["headers"]["Accept-Encoding"] = "gzip, deflate"
     params["url"] = f"{base_url}{brave_category}?{urlencode(args)}"
+    params["curl_options"] = {CurlOpt.FORBID_REUSE: 1}
     logger.debug("url %s", params["url"])
 
     # set properties in the cookies
