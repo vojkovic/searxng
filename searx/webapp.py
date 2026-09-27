@@ -988,7 +988,7 @@ def preferences():
 app.add_url_rule('/favicon_proxy', methods=['GET'], endpoint="favicon_proxy", view_func=favicons.favicon_proxy)
 
 
-@app.route('/image_proxy', methods=['GET'])
+@app.route('/image', methods=['GET'])
 def image_proxy():
     # pylint: disable=too-many-return-statements, too-many-branches
 
@@ -1174,7 +1174,7 @@ def robots():
         """User-agent: *
 Allow: /info/en/about
 Disallow: /stats
-Disallow: /image_proxy
+Disallow: /image
 Disallow: /preferences
 Disallow: /*?*q=*
 """,

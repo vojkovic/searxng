@@ -420,7 +420,7 @@ def initialize(
         if isinstance(network, str):
             NETWORKS[engine_name] = NETWORKS[network]
 
-    # the /image_proxy endpoint has a dedicated network.
+    # the /image endpoint has a dedicated network.
     # this is so it does not inherit the parent's HTTP/3 or proxy settings
     if 'image_proxy' not in NETWORKS:
         NETWORKS['image_proxy'] = new_network({}, logger_name='image_proxy')
