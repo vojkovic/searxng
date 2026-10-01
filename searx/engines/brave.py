@@ -208,7 +208,6 @@ def request(query: str, params: dict[str, t.Any]) -> None:
     if brave_category == "goggles":
         args["goggles_id"] = Goggles
 
-    params["headers"]["Accept-Encoding"] = "gzip, deflate"
     params["url"] = f"{base_url}{brave_category}?{urlencode(args)}"
     params["curl_options"] = {CurlOpt.FORBID_REUSE: 1}
     logger.debug("url %s", params["url"])
