@@ -342,7 +342,12 @@ def response(resp: "SXNG_Response") -> EngineResults:
                 continue
             title = extract_text(title_tag)
 
-            raw_url = eval_xpath_getindex(result, './/a[contains(@href, "/url?")]/@href', 0, default=None)
+            raw_url = eval_xpath_getindex(
+                result,
+                './/a[contains(@href, "/url?") and .//h3[contains(@class, "zBAuLc")]]/@href',
+                0,
+                default=None,
+            )
             if raw_url is None:
                 logger.debug(
                     'ignoring item from the result_xpath list: missing url of title "%s"',

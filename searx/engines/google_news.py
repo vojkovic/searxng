@@ -55,7 +55,12 @@ def response(resp: "SXNG_Response") -> EngineResults:
     results = EngineResults()
     seen = set()
     for result in eval_xpath_list(wml_dom(resp), '//div[contains(@class, "Gx5Zad")]'):
-        raw_url = eval_xpath_getindex(result, './/a[contains(@href, "/url?")]/@href', 0, default=None)
+        raw_url = eval_xpath_getindex(
+        result,
+        './/a[contains(@href, "/url?") and .//h3[contains(@class, "zBAuLc")]]/@href',
+        0,
+        default=None,
+    )
         if not raw_url:
             continue
 

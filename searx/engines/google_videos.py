@@ -58,7 +58,12 @@ def response(resp: "SXNG_Response") -> EngineResults:
             eval_xpath_getindex(result, './/h3[contains(@class, "zBAuLc")]', 0, default=None),
             allow_none=True,
         )
-        raw_url = eval_xpath_getindex(result, './/a[contains(@href, "/url?")]/@href', 0, default=None)
+        raw_url = eval_xpath_getindex(
+        result,
+        './/a[contains(@href, "/url?") and .//h3[contains(@class, "zBAuLc")]]/@href',
+        0,
+        default=None,
+    )
         if not title or not raw_url:
             continue
 
