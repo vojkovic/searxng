@@ -305,6 +305,7 @@ def google_request(
     start = (params["pageno"] - 1) * 10
     args: dict[str, t.Any] = {
         "q": query,
+        "client": "ms-opera",
         "sca_esv": "1",
         **google_info["params"],
         **(extra_args or {}),

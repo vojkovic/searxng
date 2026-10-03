@@ -49,6 +49,7 @@ def request(query: str, params: "OnlineParams") -> None:
         safesearch_map=filter_mapping,
         use_locales=False,
     )
+    params["headers"]["User-Agent"] = "Nokia7610"
 
 
 def response(resp: "SXNG_Response") -> EngineResults:
