@@ -9,15 +9,13 @@ engines:
 - :ref:`google scholar engine`
 - :ref:`google autocomplete`
 
-This implementation uses Nokia user agents to request an XML layout from Google.
-The normal web version requires executing JavaScript to load the results and
-therefore is currently not used here.  See `Google discussion`_ for more
-information on that topic.
+This implementation uses a Nokia user agent to request the HTML layout from
+Google. The normal web version requires executing JavaScript to load the results and
+therefore is currently not used here.  See `Google discussion`_ for more information on that topic.
 
 .. _Google discussion: https://github.com/searxng/searxng/issues/6359
 """
 
-import random
 import typing as t
 from urllib.parse import unquote, urlencode
 
@@ -69,14 +67,7 @@ time_range_dict = {"day": "d", "week": "w", "month": "m", "year": "y"}
 filter_mapping = {0: "off", 1: "medium", 2: "high"}
 
 # https://github.com/searxng/searxng/issues/6359
-nokia_useragents = (
-    "Nokia7610/2.0 (5.0509.0) SymbianOS/7.0s Series60/2.1 Profile/MIDP-2.0 Configuration/CLDC-1.0",
-    "Nokia7610/2.0 (7.0642.0) SymbianOS/7.0s Series60/2.1 Profile/MIDP-2.0 Configuration/CLDC-1.0",
-    "Nokia6230/2.0 (05.50) Profile/MIDP-2.0 Configuration/CLDC-1.1",
-    "Nokia6230i/2.0 (03.80) Profile/MIDP-2.0 Configuration/CLDC-1.1",
-    "Nokia6280/2.0 (03.60) Profile/MIDP-2.0 Configuration/CLDC-1.1",
-    "NokiaN72/2.0617.1.0.3 Series60/2.8 Profile/MIDP-2.0 Configuration/CLDC-1.1",
-)
+user_agent = "Nokia7610"
 
 
 # specific xpath variables
@@ -326,9 +317,9 @@ def google_request(
     if use_safesearch and params["safesearch"]:
         args["safe"] = (safesearch_map or filter_mapping)[params["safesearch"]]
 
-    params["url"] = f"https://www.google.com/wml/search?{urlencode(args)}"
-    params["headers"]["User-Agent"] = random.choice(nokia_useragents)
-    params["impersonate"] = "chrome99_android"
+    params["url"] = f"https://www.google.com/search?{urlencode(args)}"
+    params["headers"]["User-Agent"] = user_agent
+    params["impersonate"] = "chrome150"
     params["curl_options"] = {CurlOpt.SSL_SESSIONID_CACHE: 0}
 
 
