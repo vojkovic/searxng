@@ -53,24 +53,29 @@ def request(query: str, params: "OnlineParams") -> None:
 def response(resp: "SXNG_Response") -> EngineResults:
     results = EngineResults()
 
-    for result in eval_xpath_list(wml_dom(resp), '//div[contains(@class, "zMzFAb")]'):
+    for result in eval_xpath_list(wml_dom(resp), '//div[contains(@class, "Gx5Zad")]'):
         title = extract_text(
-            eval_xpath_getindex(result, './/span[contains(@class, "CVA68e")]', 0, default=None),
+            eval_xpath_getindex(result, './/h3[contains(@class, "zBAuLc")]', 0, default=None),
             allow_none=True,
         )
-        raw_url = eval_xpath_getindex(result, './/a[contains(@class, "fuLhoc")]/@href', 0, default=None)
+        raw_url = eval_xpath_getindex(result, './/a[contains(@href, "/url?")]/@href', 0, default=None)
         if not title or not raw_url:
             continue
 
         url = unwrap_google_url(raw_url)
-        thumbnail = eval_xpath_getindex(result, './/img[contains(@class, "SygO9d")]/@src', 0, default="")
+        if not url.startswith("http"):
+            continue
+        thumbnail = eval_xpath_getindex(result, './/img[contains(@src, "http")]/@src', 0, default="") or ""
         if "/default.jpg" in thumbnail:
             thumbnail = thumbnail.split("?")[0].replace("/default.jpg", "/hqdefault.jpg")
+        content = extract_text(
+            eval_xpath_getindex(result, './/div[contains(@class, "H66NU")]', 0, default=None),
+            allow_none=True,
+        ) or ""
         length = None
-        for span in eval_xpath_list(result, './/span[contains(@class, "YVIcad")]'):
-            length = parse_duration_string(extract_text(span) or "")
-            if length:
-                break
+        if "Duration:" in content:
+            # "Duration: 12:14Posted: Jun 20, 2026"
+            length = parse_duration_string(content.split("Duration:", 1)[1].split("Posted", 1)[0])
 
         results.add(
             results.types.Video(

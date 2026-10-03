@@ -51,39 +51,37 @@ def request(query: str, params: "OnlineParams") -> None:
     )
 
 
-def _span_text(link, css_class: str):
-    return extract_text(
-        eval_xpath_getindex(link, f'.//span[contains(@class, "{css_class}")]', 0, default=None),
-        allow_none=True,
-    )
-
-
 def response(resp: "SXNG_Response") -> EngineResults:
     results = EngineResults()
     seen = set()
-    for link in eval_xpath_list(wml_dom(resp), '//a[contains(@href, "/url?q=")]'):
-        href = link.get("href")
-        if not href:
+    for result in eval_xpath_list(wml_dom(resp), '//div[contains(@class, "Gx5Zad")]'):
+        raw_url = eval_xpath_getindex(result, './/a[contains(@href, "/url?")]/@href', 0, default=None)
+        if not raw_url:
             continue
 
-        url = unwrap_google_url(href)
-        if url in seen or "google.com/search" in url:
+        url = unwrap_google_url(raw_url)
+        if not url.startswith("http") or url in seen or "google.com/search" in url:
             continue
 
-        title = _span_text(link, "M3vVJe") or _span_text(link, "fuLhoc")
+        title = extract_text(
+            eval_xpath_getindex(result, './/h3[contains(@class, "zBAuLc")]', 0, default=None),
+            allow_none=True,
+        )
         if not title:
             continue
 
-        source = _span_text(link, "dXDvrc")
-        pub_date = _span_text(link, "YVIcad")
-        thumbnail = eval_xpath_getindex(link, './/img[contains(@src, "encrypted-tbn")]/@src', 0, default=None)
+        content = extract_text(
+            eval_xpath_getindex(result, './/div[contains(@class, "H66NU")]', 0, default=None),
+            allow_none=True,
+        )
+        thumbnail = eval_xpath_getindex(result, './/img[contains(@src, "http")]/@src', 0, default=None)
 
         seen.add(url)
         results.add(
             results.types.MainResult(
                 url=url,
                 title=title,
-                content=" / ".join(x for x in [source, pub_date] if x),
+                content=content or "",
                 thumbnail=thumbnail or "",
             )
         )

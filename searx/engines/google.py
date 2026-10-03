@@ -9,7 +9,7 @@ engines:
 - :ref:`google scholar engine`
 - :ref:`google autocomplete`
 
-This implementation uses a Nokia user agent to request the HTML layout from
+This implementation uses an Opera Mini user agent to request the HTML layout from
 Google. The normal web version requires executing JavaScript to load the results and
 therefore is currently not used here.  See `Google discussion`_ for more information on that topic.
 
@@ -30,7 +30,6 @@ from searx.exceptions import SearxEngineCaptchaException
 from searx.locales import get_official_locales, language_tag, region_tag
 from searx.result_types import EngineResults
 from searx.utils import (
-    eval_xpath,
     eval_xpath_getindex,
     eval_xpath_list,
     extract_text,
@@ -67,7 +66,7 @@ time_range_dict = {"day": "d", "week": "w", "month": "m", "year": "y"}
 filter_mapping = {0: "off", 1: "medium", 2: "high"}
 
 # https://github.com/searxng/searxng/issues/6359
-user_agent = "Nokia7610"
+user_agent = "Opera/9.80 (Android; Opera Mini/72.0.2254/191.249; U; en) Presto/2.12.423 Version/12.16"
 
 
 # specific xpath variables
@@ -75,7 +74,7 @@ user_agent = "Nokia7610"
 
 # Suggestions are links placed in a *card-section*, we extract only the text
 # from the links not the links itself.
-suggestion_xpath = '//table[contains(@class, "HExoMb")]//a[contains(@class, "ZWRArf")]'
+suggestion_xpath = '//a[contains(@class, "HA0EX")]'
 
 
 def get_google_info(params: "OnlineParams", eng_traits: EngineTraits) -> dict[str, t.Any]:
@@ -274,8 +273,8 @@ def detect_google_sorry(resp: "SXNG_Response"):
 
 def unwrap_google_url(raw_url: str) -> str:
     # remove redirector from url
-    if raw_url.startswith("/url?q="):
-        return unquote(raw_url[7:].split("&sa=U")[0])
+    if raw_url.startswith("/url?") and "q=" in raw_url:
+        return unquote(raw_url.split("q=", 1)[1].split("&", 1)[0])
     return raw_url
 
 
@@ -319,7 +318,7 @@ def google_request(
 
     params["url"] = f"https://www.google.com/search?{urlencode(args)}"
     params["headers"]["User-Agent"] = user_agent
-    params["impersonate"] = "chrome150"
+    params["impersonate"] = "none"
     params["curl_options"] = {CurlOpt.SSL_SESSIONID_CACHE: 0}
 
 
@@ -332,19 +331,17 @@ def response(resp: "SXNG_Response") -> EngineResults:
     dom = wml_dom(resp)
 
     # parse results
-    for result in eval_xpath_list(dom, '//div[contains(@class, "zMzFAb")]'):
+    for result in eval_xpath_list(dom, '//div[contains(@class, "Gx5Zad")]'):
 
         try:
-            title_tag = eval_xpath_getindex(
-                result, './/a[contains(@class, "fuLhoc")]//span[contains(@class, "CVA68e")]', 0, default=None
-            )
+            title_tag = eval_xpath_getindex(result, './/h3[contains(@class, "zBAuLc")]', 0, default=None)
             if title_tag is None:
                 # this not one of the common google results *section*
                 logger.debug("ignoring item from the result_xpath list: missing title")
                 continue
             title = extract_text(title_tag)
 
-            raw_url = eval_xpath_getindex(result, './/a[contains(@class, "fuLhoc")]/@href', 0, default=None)
+            raw_url = eval_xpath_getindex(result, './/a[contains(@href, "/url?")]/@href', 0, default=None)
             if raw_url is None:
                 logger.debug(
                     'ignoring item from the result_xpath list: missing url of title "%s"',
@@ -353,10 +350,12 @@ def response(resp: "SXNG_Response") -> EngineResults:
                 continue
 
             url = unwrap_google_url(raw_url)
+            if not url.startswith("http"):
+                continue
             content = extract_text(
-                eval_xpath(result, './/div[contains(@class, "taTFJ")]//span[contains(@class, "FrIlee")]')
+                eval_xpath_getindex(result, './/div[contains(@class, "H66NU")]', 0, default=None)
             )
-            thumbnail = eval_xpath_getindex(result, './/img[contains(@src, "encrypted-tbn")]/@src', 0, default=None)
+            thumbnail = eval_xpath_getindex(result, './/img[contains(@src, "http")]/@src', 0, default=None)
             results.add(
                 results.types.MainResult(
                     url=url,
