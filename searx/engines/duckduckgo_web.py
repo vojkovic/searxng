@@ -16,7 +16,7 @@ can't build it ourselves and must scrape it from the HTML pages.
 import typing as t
 import re
 
-from urllib.parse import quote_plus, urljoin
+from urllib.parse import quote_plus, urljoin, urlparse
 
 from searx.utils import html_to_text, extract_text, eval_xpath
 from searx.result_types import EngineResults
@@ -177,12 +177,15 @@ def response(resp: "SXNG_Response"):
 
     results = resp.json()["results"]
     for result in results:
-        if "u" not in result:
+        url = result.get("u")
+        if not isinstance(url, str) or not url:
+            continue
+        try:
+            urlparse(url)
+        except ValueError:
             continue
 
-        res.add(
-            res.types.MainResult(url=result["u"], title=html_to_text(result["t"]), content=html_to_text(result["a"]))
-        )
+        res.add(res.types.MainResult(url=url, title=html_to_text(result["t"]), content=html_to_text(result["a"])))
 
     if results:
         next_page_path = results[-1].get("n")
