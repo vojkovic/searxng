@@ -68,6 +68,7 @@ class Network:
 
     _TOR_CHECK_RESULT = {}
     _CLIENT_KWARGS = ('verify', 'max_redirects', 'impersonate', 'curl_options', 'enable_http3')
+    _SHARED_CLIENTS: dict[tuple, AsyncClient] = {}
 
     def __init__(
         # pylint: disable=too-many-arguments
@@ -206,8 +207,20 @@ class Network:
         local_address = next(self._local_addresses_cycle)
         proxies = next(self._proxies_cycle)  # is a tuple so it can be part of the key
         curl_key = tuple(sorted((int(k), v) for k, v in (curl_options or {}).items()))
-        key = (verify, max_redirects, local_address, proxies, impersonate, curl_key, enable_http3)
-        if key not in self._clients or self._clients[key].is_closed:
+        key = (
+            self.enable_http,
+            self.enable_http2,
+            enable_http3,
+            verify,
+            max_redirects,
+            local_address,
+            proxies,
+            impersonate,
+            curl_key,
+            self.max_connections,
+        )
+        client = Network._SHARED_CLIENTS.get(key)
+        if client is None or client.is_closed:
             client = new_client(
                 self.enable_http,
                 verify,
@@ -223,8 +236,9 @@ class Network:
             if self.using_tor_proxy and not await self.check_tor_proxy(client, proxies):
                 await client.aclose()
                 raise ProxyError('Network configuration problem: not using Tor')
-            self._clients[key] = client
-        return self._clients[key]
+            Network._SHARED_CLIENTS[key] = client
+        self._clients[key] = client
+        return client
 
     async def aclose(self):
         async def close_client(client):
@@ -285,13 +299,10 @@ class Network:
                     await self.log_response(response)
                 if self.is_valid_response(response) or retries <= 0:
                     return self.patch_response(response, do_raise_for_httperror)
-                await client.aclose()
             except CurlConnectionError as e:
                 if not was_disconnected:
-                    # the server has closed the connection:
-                    # try again without decreasing the retries variable & with a new HTTP client
+                    # retry on the same session
                     was_disconnected = True
-                    await client.aclose()
                     self._logger.warning('ConnectionError: the server has disconnected, retrying')
                     continue
                 if retries <= 0:
