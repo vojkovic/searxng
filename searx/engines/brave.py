@@ -123,6 +123,7 @@ import typing as t
 from collections.abc import Callable
 from urllib.parse import urlencode
 
+from curl_cffi import CurlHttpVersion, CurlOpt
 from dateutil import parser
 
 from searx import locales, logger
@@ -226,6 +227,10 @@ def request(query: str, params: dict[str, t.Any]) -> None:
         args["goggles_id"] = Goggles
 
     params["url"] = f"{base_url}{brave_category}?{urlencode(args)}"
+    params["curl_options"] = {
+        CurlOpt.FORBID_REUSE: 1,
+        CurlOpt.HTTP_VERSION: CurlHttpVersion.V3ONLY,
+    }
     logger.debug("url %s", params["url"])
 
     # set properties in the cookies
@@ -451,12 +456,6 @@ def _parse_results(parse_func: Callable[..., MainResult | Image], resp: "SXNG_Re
     """Extract json data and loop through result list
     The suppled :py.obj:`parse_func` parses individual result items
     General search / goggle search relies on :py.obj:`_parse_secondary_items` for mixed result-types"""
-    # Example script source containing the data:
-    #
-    # kit.start(app, element, {
-    #    node_ids: [0, 19],
-    #    data: [{type:"data",data: .... ["q","goggles_id"],route:1,url:1}}]
-    #          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     results = EngineResults()
     json_data: dict[str, t.Any] = extract_json_data(resp.text)
     json_resp: dict[str, t.Any] = _get_response_data(json_data, brave_category)
