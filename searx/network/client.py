@@ -75,6 +75,7 @@ def new_client(
     curl_options: dict[int, t.Any] | None = None,
 ) -> AsyncClient:
     extra_curl = dict(curl_options or {})
+    extra_curl.setdefault(CurlOpt.MAXAGE_CONN, 30)
     if not enable_http:
         extra_curl.setdefault(CurlOpt.PROTOCOLS_STR, "https")
         extra_curl.setdefault(CurlOpt.REDIR_PROTOCOLS_STR, "https")
