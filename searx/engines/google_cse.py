@@ -6,6 +6,8 @@ import typing as t
 from json import loads
 from urllib.parse import urlencode
 
+from curl_cffi import CurlOpt
+
 from searx.enginelib import EngineCache
 from searx.exceptions import SearxEngineAPIException, SearxEngineTooManyRequestsException
 from searx.network import get
@@ -61,7 +63,7 @@ def _cse_token() -> dict[str, str]:
     if token:
         return token
 
-    resp = get(f"https://www.google.com/cse/cse.js?cx={CX}", timeout=10)
+    resp = get(f"https://www.google.com/cse/cse.js?cx={CX}", timeout=10, curl_options={CurlOpt.SSL_SESSIONID_CACHE: 0})
     if not resp.ok:
         raise SearxEngineAPIException("failed to obtain cse token")
 
@@ -124,6 +126,7 @@ def request(query: str, params: "OnlineParams") -> None:
         args["start"] = str(start)
 
     params["url"] = "https://cse.google.com/cse/element/v1?" + urlencode(args)
+    params["curl_options"] = {CurlOpt.SSL_SESSIONID_CACHE: 0}
     params["cookies"] = google_info["cookies"]
     params["headers"].update(google_info["headers"])
     params["headers"]["Referer"] = "https://cse.google.com/"
@@ -140,6 +143,8 @@ def response(resp: "SXNG_Response") -> EngineResults:
     if error := data.get("error"):
         message = error.get("message", "unknown error")
         if error.get("code") == 429:
+            # invalidate cse token
+            CACHE.set(CX, {}, expire=1)
             raise SearxEngineTooManyRequestsException(message=f"google cse: {message}")
         raise SearxEngineAPIException(f"google cse: {message}")
 
