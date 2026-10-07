@@ -4,13 +4,14 @@
 .. _System1: https://system1.com/
 """
 
+import re
 import typing as t
 from datetime import datetime, timezone, timedelta
 import html
 
 from searx.enginelib import EngineCache
 from searx.exceptions import SearxEngineAPIException
-from searx.network import post
+from searx.network import get
 from searx.utils import html_to_text, humanize_number
 from searx.result_types import EngineResults
 
@@ -54,14 +55,13 @@ def _obtain_token() -> str:
     token = CACHE.get("token")
     if token:
         return token
-    resp = post(
-        f"{base_url}/api/token/refresh",
-        headers={"Origin": base_url, "Sec-Fetch-Mode": "cors"},
-        cookies={"dp_api_token": "1"},
-    )
+    resp = get(f"{base_url}/")
     if not resp.ok:
         raise SearxEngineAPIException("failed to obtain dogpile token")
-    token = resp.json()["token"]
+    match = re.search(r'window\.__DP_TOKEN__="([^"]+)"', resp.text)
+    if not match:
+        raise SearxEngineAPIException("failed to obtain dogpile token")
+    token = match.group(1)
     CACHE.set("token", token, expire=240)  # 300s ttl
     return token
 
@@ -69,6 +69,7 @@ def _obtain_token() -> str:
 def request(query: str, params: "OnlineParams"):
     params["url"] = f"{base_url}/api/{dogpile_categ}"
     params["headers"]["Origin"] = base_url
+    params["headers"]["Sec-Fetch-Site"] = "same-origin"
     params["headers"]["Sec-Fetch-Mode"] = "cors"
     params["cookies"]["dp_api_token"] = "1"
     params["headers"]["x-dogpile-token"] = _obtain_token()
