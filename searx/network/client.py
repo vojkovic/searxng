@@ -75,7 +75,7 @@ def new_client(
     curl_options: dict[int, t.Any] | None = None,
 ) -> AsyncClient:
     extra_curl = dict(curl_options or {})
-    extra_curl.setdefault(CurlOpt.MAXAGE_CONN, 30)
+    extra_curl.setdefault(CurlOpt.MAXAGE_CONN, 86400)
     if not enable_http:
         extra_curl.setdefault(CurlOpt.PROTOCOLS_STR, "https")
         extra_curl.setdefault(CurlOpt.REDIR_PROTOCOLS_STR, "https")
@@ -114,6 +114,20 @@ def get_loop() -> asyncio.AbstractEventLoop:
     return LOOP
 
 
+async def _keepalive():
+    while True:
+        await asyncio.sleep(20)
+        from searx.network.network import Network  # pylint: disable=import-outside-toplevel
+
+        for client in list(Network._SHARED_CLIENTS.values()):
+            if client.is_closed:
+                continue
+            try:
+                await client.upkeep()
+            except Exception:  # pylint: disable=broad-except
+                pass
+
+
 def init():
     logging.getLogger("curl_cffi").setLevel(logging.WARNING)
 
@@ -122,6 +136,7 @@ def init():
     def loop_thread():
         global LOOP
         LOOP = asyncio.new_event_loop()
+        LOOP.call_soon(lambda: LOOP.create_task(_keepalive()))
         ready.set()
         LOOP.run_forever()
 
