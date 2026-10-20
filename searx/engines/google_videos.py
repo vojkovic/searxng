@@ -4,10 +4,9 @@
 import typing as t
 
 from searx.engines.google import fetch_traits  # pylint: disable=unused-import
-from searx.engines.google import google_request, unwrap_google_url, wml_dom
+from searx.engines.google import google_request, opera_card_fields, opera_result_nodes, resolve_opera_urls, response_dom
 from searx.result_types import EngineResults
 from searx.utils import (
-    eval_xpath_getindex,
     eval_xpath_list,
     extract_text,
     parse_duration_string,
@@ -52,33 +51,26 @@ def request(query: str, params: "OnlineParams") -> None:
 
 def response(resp: "SXNG_Response") -> EngineResults:
     results = EngineResults()
-
-    for result in eval_xpath_list(wml_dom(resp), '//div[contains(@class, "zMzFAb")]'):
-        title = extract_text(
-            eval_xpath_getindex(result, './/span[contains(@class, "CVA68e")]', 0, default=None),
-            allow_none=True,
-        )
-        raw_url = eval_xpath_getindex(result, './/a[contains(@class, "fuLhoc")]/@href', 0, default=None)
+    dom = response_dom(resp)
+    cards = []
+    raw_urls = []
+    lengths = []
+    for card in opera_result_nodes(dom):
+        title, raw_url, _content = opera_card_fields(card)
         if not title or not raw_url:
             continue
-
-        url = unwrap_google_url(raw_url)
-        thumbnail = eval_xpath_getindex(result, './/img[contains(@class, "SygO9d")]/@src', 0, default="")
-        if "/default.jpg" in thumbnail:
-            thumbnail = thumbnail.split("?")[0].replace("/default.jpg", "/hqdefault.jpg")
         length = None
-        for span in eval_xpath_list(result, './/span[contains(@class, "YVIcad")]'):
+        for span in eval_xpath_list(card, './/span[contains(@class, "UK5aid")]'):
             length = parse_duration_string(extract_text(span) or "")
             if length:
                 break
+        cards.append(title)
+        raw_urls.append(raw_url)
+        lengths.append(length)
 
-        results.add(
-            results.types.Video(
-                url=url,
-                title=title,
-                thumbnail=thumbnail,
-                length=length,
-            )
-        )
+    for title, url, length in zip(cards, resolve_opera_urls(raw_urls), lengths):
+        if not url:
+            continue
+        results.add(results.types.Video(url=url, title=title, length=length))
 
     return results

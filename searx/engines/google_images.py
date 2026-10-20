@@ -2,10 +2,9 @@
 """Google Images: see :py:obj:`searx.engines.google`."""
 
 import typing as t
-from urllib.parse import parse_qs, unquote, urlparse
 
 from searx.engines.google import fetch_traits  # pylint: disable=unused-import
-from searx.engines.google import google_request, wml_dom
+from searx.engines.google import google_request, response_dom
 from searx.result_types import EngineResults
 from searx.utils import eval_xpath_list
 
@@ -48,27 +47,22 @@ def request(query: str, params: "OnlineParams") -> None:
         eng_traits=traits,
         safesearch_map=filter_mapping,
         use_locales=False,
+        images=True,
     )
 
 
 def response(resp: "SXNG_Response") -> EngineResults:
     results = EngineResults()
-    dom = wml_dom(resp)
+    dom = response_dom(resp)
 
-    for link in eval_xpath_list(dom, '//a[contains(@href, "/imgres?")]'):
-        qs = parse_qs(urlparse(link.get("href", "")).query)
-        img_src = qs.get("imgurl", [""])[0]
-        url = qs.get("imgrefurl", [""])[0]
-        if not img_src or not url:
-            continue
-        width, height = qs.get("w", [""])[0], qs.get("h", [""])[0]
-        tbnid = qs.get("tbnid", [""])[0]
+    for tile in eval_xpath_list(dom, '//div[contains(@class, "islrtb") and @data-ou and @data-ru]'):
+        width, height, tbnid = tile.get("data-ow"), tile.get("data-oh"), tile.get("data-tbnid")
         results.add(
             results.types.Image(
-                url=url,
-                title=unquote(urlparse(img_src).path.rsplit("/", 1)[-1]) or urlparse(url).netloc,
-                img_src=img_src,
-                thumbnail_src=f"https://encrypted-tbn0.gstatic.com/images?q=tbn:{tbnid}",
+                url=tile.get("data-ru"),
+                title=tile.get("data-pt") or "",
+                img_src=tile.get("data-ou"),
+                thumbnail_src=f"https://encrypted-tbn0.gstatic.com/images?q=tbn:{tbnid}" if tbnid else "",
                 resolution=f"{width} x {height}" if width and height else "",
             )
         )
