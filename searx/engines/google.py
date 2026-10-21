@@ -20,6 +20,7 @@ import typing as t
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import babel
+from curl_cffi import CurlOpt
 import babel.core
 import babel.languages
 from lxml import html
@@ -310,6 +311,7 @@ def google_request(
     params["headers"].pop("Accept-Language", None)
     params["headers"]["User-Agent"] = useragent
     params["impersonate"] = "none"
+    params["curl_options"] = {CurlOpt.FORBID_REUSE: 1}
 
 
 def request(query: str, params: "OnlineParams") -> None:
