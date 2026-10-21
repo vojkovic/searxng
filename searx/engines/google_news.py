@@ -4,15 +4,9 @@
 import typing as t
 
 from searx.engines.google import fetch_traits  # pylint: disable=unused-import
-from searx.engines.google import (
-    google_request,
-    opera_card_fields,
-    opera_result_nodes,
-    resolve_opera_urls,
-    response_dom,
-)
+from searx.engines.google import _is_publisher_url, google_request, response_dom, unwrap_google_url
 from searx.result_types import EngineResults
-from searx.utils import eval_xpath_getindex, extract_text
+from searx.utils import eval_xpath_getindex, eval_xpath_list, extract_text
 
 if t.TYPE_CHECKING:
     from searx.extended_types import SXNG_Response
@@ -56,26 +50,43 @@ def request(query: str, params: "OnlineParams") -> None:
 def response(resp: "SXNG_Response") -> EngineResults:
     results = EngineResults()
     dom = response_dom(resp)
-    cards = []
-    raw_urls = []
-    for card in opera_result_nodes(dom):
-        title, raw_url, content = opera_card_fields(card)
-        if not title or not raw_url:
-            continue
-        source = extract_text(
-            eval_xpath_getindex(card, './/div[contains(@class, "BamJPe")]', 0, default=None),
+    seen = set()
+    for link in eval_xpath_list(dom, '//a[contains(@href, "/url?") and .//span[contains(@class, "CVA68e")]]'):
+        url = unwrap_google_url(link.get("href") or "")
+        title = extract_text(
+            eval_xpath_getindex(link, './/span[contains(@class, "CVA68e")]', 0, default=None),
             allow_none=True,
         )
-        if source and source not in content:
-            content = f"{source} / {content}" if content else source
-        cards.append((title, content))
-        raw_urls.append(raw_url)
-
-    seen = set()
-    for (title, content), url in zip(cards, resolve_opera_urls(raw_urls)):
-        if not url or url in seen:
+        if not title or not _is_publisher_url(url) or url in seen:
             continue
+        source = extract_text(
+            eval_xpath_getindex(link, './/span[contains(@class, "dXDvrc")]', 0, default=None),
+            allow_none=True,
+        )
+        when = extract_text(
+            eval_xpath_getindex(link, './/span[contains(@class, "YVIcad")]', 0, default=None),
+            allow_none=True,
+        )
+        snippet = extract_text(
+            eval_xpath_getindex(
+                link,
+                './/span[contains(@class, "FrIlee")]/span[contains(@class, "fYyStc")'
+                ' and not(contains(@class, "YVIcad")) and not(contains(@class, "M3vVJe"))'
+                ' and not(contains(@class, "dXDvrc"))]',
+                0,
+                default=None,
+            ),
+            allow_none=True,
+        )
+        if snippet and not snippet.strip(" ·"):
+            snippet = ""
         seen.add(url)
-        results.add(results.types.MainResult(url=url, title=title, content=content))
+        results.add(
+            results.types.MainResult(
+                url=url,
+                title=title,
+                content=" / ".join(part for part in (source, when, snippet) if part),
+            )
+        )
 
     return results

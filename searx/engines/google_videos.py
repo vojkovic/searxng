@@ -4,9 +4,10 @@
 import typing as t
 
 from searx.engines.google import fetch_traits  # pylint: disable=unused-import
-from searx.engines.google import google_request, opera_card_fields, opera_result_nodes, resolve_opera_urls, response_dom
+from searx.engines.google import _is_publisher_url, google_request, response_dom, unwrap_google_url
 from searx.result_types import EngineResults
 from searx.utils import (
+    eval_xpath_getindex,
     eval_xpath_list,
     extract_text,
     parse_duration_string,
@@ -52,25 +53,21 @@ def request(query: str, params: "OnlineParams") -> None:
 def response(resp: "SXNG_Response") -> EngineResults:
     results = EngineResults()
     dom = response_dom(resp)
-    cards = []
-    raw_urls = []
-    lengths = []
-    for card in opera_result_nodes(dom):
-        title, raw_url, _content = opera_card_fields(card)
-        if not title or not raw_url:
+    for card in eval_xpath_list(dom, '//div[contains(@class, "zMzFAb") and .//a[contains(@class, "fuLhoc")]]'):
+        url = unwrap_google_url(
+            eval_xpath_getindex(card, './/a[contains(@class, "fuLhoc")]/@href', 0, default="") or ""
+        )
+        title = extract_text(
+            eval_xpath_getindex(card, './/span[contains(@class, "CVA68e")]', 0, default=None),
+            allow_none=True,
+        )
+        if not title or not _is_publisher_url(url):
             continue
         length = None
-        for span in eval_xpath_list(card, './/span[contains(@class, "UK5aid")]'):
+        for span in eval_xpath_list(card, './/span[contains(@class, "YVIcad")]'):
             length = parse_duration_string(extract_text(span) or "")
             if length:
                 break
-        cards.append(title)
-        raw_urls.append(raw_url)
-        lengths.append(length)
-
-    for title, url, length in zip(cards, resolve_opera_urls(raw_urls), lengths):
-        if not url:
-            continue
         results.add(results.types.Video(url=url, title=title, length=length))
 
     return results

@@ -9,8 +9,9 @@ engines:
 - :ref:`google scholar engine`
 - :ref:`google autocomplete`
 
-Web, news, and video use an Opera Mini user agent. Images use the Opera 8.65
-image-lite client. See `Google discussion`_ for more information on that topic.
+Web, news, and video use the Samsung GT-S5230 user agent. Images use the Opera
+8.65 image-lite client. See `Google discussion`_ for more information on that
+topic.
 
 .. _Google discussion: https://github.com/searxng/searxng/issues/6359
 """
@@ -63,10 +64,10 @@ time_range_dict = {"day": "d", "week": "w", "month": "m", "year": "y"}
 # Filter results. 0: None, 1: Moderate, 2: Strict
 filter_mapping = {0: "off", 1: "medium", 2: "high"}
 
-opera_useragent = "Opera/9.80 (Android; Opera Mini/72.0.2254/191.249; U; en) Presto/2.12.423 Version/12.16"
+samsung_useragent = "SAMSUNG-GT-S5230"
 image_useragent = "Mozilla/4.0 (compatible; MSIE 6.0; Symbian OS) Opera 8.65"
 
-suggestion_xpath = '//table[contains(@class, "HExoMb")]//a[contains(@class, "ZWRArf")]'
+suggestion_xpath = '//table[contains(@class, "HExoMb")]//a[contains(@class, "ZWRArf") and not(contains(@href, "/url?"))]'
 
 
 def get_google_info(params: "OnlineParams", eng_traits: EngineTraits) -> dict[str, t.Any]:
@@ -251,75 +252,18 @@ def unwrap_google_url(raw_url: str) -> str:
     return target if target.startswith("http") else raw_url
 
 
-def resolve_opera_urls(raw_urls: list[str]) -> list[str | None]:
-    resolved: list[str | None] = [None] * len(raw_urls)
-    pending_at: list[int] = []
-    pending_href: list[str] = []
-    for index, raw_url in enumerate(raw_urls):
-        if not raw_url:
-            continue
-        target = unwrap_google_url(raw_url)
-        if target.startswith("http"):
-            resolved[index] = target if _is_publisher_url(target) else None
-            continue
-        pending_at.append(index)
-        pending_href.append(raw_url)
-    if not pending_href:
-        return resolved
-
-    from searx.network import Request, multi_requests  # pylint: disable=import-outside-toplevel
-
-    responses = multi_requests(
-        [
-            Request.get(
-                "https://www.google.com" + href,
-                headers={"User-Agent": opera_useragent},
-                allow_redirects=False,
-                default_headers=False,
-            )
-            for href in pending_href
-        ]
-    )
-    for index, resp in zip(pending_at, responses):
-        if isinstance(resp, Exception):
-            continue
-        location = resp.headers.get("Location") or ""
-        if resp.status_code in (301, 302, 303, 307, 308) and _is_publisher_url(location):
-            resolved[index] = location
-    return resolved
-
-
 def _is_publisher_url(url: str) -> bool:
     host = urlparse(url).netloc.lower()
     gstatic = host == "gstatic.com" or host.endswith(".gstatic.com")
     return url.startswith("http") and not gstatic and "/sorry/" not in url
 
 
-def opera_result_nodes(dom):
-    return eval_xpath_list(dom, '//div[contains(@class, "Gx5Zad") and .//h3[contains(@class, "zBAuLc")]]')
-
-
-def opera_card_fields(card) -> tuple[str, str, str]:
-    title = extract_text(
-        eval_xpath_getindex(card, './/h3[contains(@class, "zBAuLc")]', 0, default=None),
-        allow_none=True,
-    )
-    raw_url = eval_xpath_getindex(
-        card,
-        './/a[contains(@href, "/url?") and .//h3[contains(@class, "zBAuLc")]]/@href',
-        0,
-        default=None,
-    )
-    content = extract_text(
-        eval_xpath_getindex(card, './/div[contains(@class, "H66NU")]', 0, default=None),
-        allow_none=True,
-    )
-    return title or "", raw_url or "", content or ""
-
-
 def response_dom(resp: "SXNG_Response"):
     detect_google_sorry(resp)
-    return html.fromstring(resp.text)
+    text = resp.text
+    if text.lstrip().startswith("<?xml"):
+        text = text.split("?>", 1)[-1]
+    return html.fromstring(text)
 
 
 def google_request(
@@ -351,10 +295,9 @@ def google_request(
             args["ijn"] = page
         useragent = image_useragent
     else:
-        args["client"] = "ms-opera"
         if page:
             args["start"] = page * 10
-        useragent = opera_useragent
+        useragent = samsung_useragent
     if use_time_range and params["time_range"] in time_range_dict:
         args["tbs"] = "qdr:" + time_range_dict[params["time_range"]]
     if use_safesearch and params["safesearch"]:
@@ -375,19 +318,26 @@ def response(resp: "SXNG_Response") -> EngineResults:
     results = EngineResults()
     dom = response_dom(resp)
 
-    cards = []
-    raw_urls = []
-    for card in opera_result_nodes(dom):
-        title, raw_url, content = opera_card_fields(card)
-        if not title or not raw_url:
+    for card in eval_xpath_list(dom, '//div[contains(@class, "zMzFAb") and .//a[contains(@class, "fuLhoc")]]'):
+        url = unwrap_google_url(
+            eval_xpath_getindex(card, './/a[contains(@class, "fuLhoc")]/@href', 0, default="") or ""
+        )
+        title = extract_text(
+            eval_xpath_getindex(card, './/span[contains(@class, "CVA68e")]', 0, default=None),
+            allow_none=True,
+        )
+        content = extract_text(
+            eval_xpath_getindex(
+                card,
+                './/span[contains(@class, "FrIlee")]/span[contains(@class, "fYyStc") and not(contains(@class, "YVIcad"))]',
+                0,
+                default=None,
+            ),
+            allow_none=True,
+        )
+        if not title or not _is_publisher_url(url):
             continue
-        cards.append((title, content))
-        raw_urls.append(raw_url)
-
-    for (title, content), url in zip(cards, resolve_opera_urls(raw_urls)):
-        if not url:
-            continue
-        results.add(results.types.MainResult(url=url, title=title, content=content))
+        results.add(results.types.MainResult(url=url, title=title, content=content or ""))
 
     for suggestion in eval_xpath_list(dom, suggestion_xpath):
         results.add(results.types.LegacyResult(suggestion=extract_text(suggestion)))
