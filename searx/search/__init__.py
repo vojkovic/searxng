@@ -146,7 +146,8 @@ class Search:
                 args=(query, request_params, self.result_container, self.start_time, self.actual_timeout),
                 name=search_id,
             )
-            th._timeout = False
+            th._engine_outcome_lock = threading.Lock()
+            th._engine_outcome_recorded = False
             th._engine_name = engine_name
             th.start()
 
@@ -155,9 +156,12 @@ class Search:
                 remaining_time = max(0.0, self.actual_timeout - (default_timer() - self.start_time))
                 th.join(remaining_time)
                 if th.is_alive():
-                    th._timeout = True
-                    self.result_container.add_unresponsive_engine(th._engine_name, 'timeout')
-                    PROCESSORS[th._engine_name].logger.error('engine timeout')
+                    with th._engine_outcome_lock:
+                        if not th._engine_outcome_recorded:
+                            th._engine_outcome_recorded = True
+                            PROCESSORS[th._engine_name].record_unresponsive_timeout(
+                                self.result_container, default_timer() - self.start_time
+                            )
 
     def search_standard(self):
         """

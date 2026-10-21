@@ -41,7 +41,7 @@ def calculate_score(
 class Timing(t.NamedTuple):
     engine: str
     total: float
-    load: float
+    load: float | None
 
 
 class UnresponsiveEngine(t.NamedTuple):
@@ -256,7 +256,7 @@ class ResultContainer:
             if searx.engines.engines[engine_name].display_error_messages:
                 self.unresponsive_engines.add(UnresponsiveEngine(engine_name, error_type, suspended))
 
-    def add_timing(self, engine_name: str, engine_time: float, page_load_time: float):
+    def add_timing(self, engine_name: str, engine_time: float, page_load_time: float | None):
         with self._lock:
             if self._closed:
                 log.error("call to ResultContainer.add_timing after ResultContainer.close")

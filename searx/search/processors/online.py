@@ -258,11 +258,11 @@ class OnlineProcessor(EngineProcessor):
             self.extend_container(result_container, start_time, search_results)
         except ssl.SSLError as e:
             # requests timeout (connect or read)
-            self.handle_exception(result_container, e, suspend=True)
+            self.handle_exception(result_container, e, suspend=True, start_time=start_time)
             self.logger.debug("SSLError {}, verify={}".format(e, searx.network.get_network(self.engine.name).verify))
         except (Timeout, asyncio.TimeoutError) as e:
             # requests timeout (connect or read)
-            self.handle_exception(result_container, e, suspend=True)
+            self.handle_exception(result_container, e, suspend=True, start_time=start_time)
             self.logger.debug(
                 "HTTP requests timeout (search duration : {0} s, timeout: {1} s) : {2}".format(
                     default_timer() - start_time, timeout_limit, e.__class__.__name__
@@ -270,7 +270,7 @@ class OnlineProcessor(EngineProcessor):
             )
         except RequestException as e:
             # other requests exception
-            self.handle_exception(result_container, e, suspend=True)
+            self.handle_exception(result_container, e, suspend=True, start_time=start_time)
             self.logger.debug(
                 "requests exception (search duration : {0} s, timeout: {1} s) : {2}".format(
                     default_timer() - start_time, timeout_limit, e
@@ -281,8 +281,8 @@ class OnlineProcessor(EngineProcessor):
             SearxEngineTooManyRequestsException,
             SearxEngineAccessDeniedException,
         ) as e:
-            self.handle_exception(result_container, e, suspend=True)
+            self.handle_exception(result_container, e, suspend=True, start_time=start_time)
             self.logger.debug(e.message)
         except Exception as e:  # pylint: disable=broad-except
-            self.handle_exception(result_container, e)
+            self.handle_exception(result_container, e, start_time=start_time)
             self.logger.debug("exception : {0}".format(e))

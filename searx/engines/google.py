@@ -67,7 +67,9 @@ filter_mapping = {0: "off", 1: "medium", 2: "high"}
 samsung_useragent = "SAMSUNG-GT-S5230"
 image_useragent = "Mozilla/4.0 (compatible; MSIE 6.0; Symbian OS) Opera 8.65"
 
-suggestion_xpath = '//table[contains(@class, "HExoMb")]//a[contains(@class, "ZWRArf") and not(contains(@href, "/url?"))]'
+suggestion_xpath = (
+    '//table[contains(@class, "HExoMb")]//a[contains(@class, "ZWRArf") and not(contains(@href, "/url?"))]'
+)
 
 
 def get_google_info(params: "OnlineParams", eng_traits: EngineTraits) -> dict[str, t.Any]:

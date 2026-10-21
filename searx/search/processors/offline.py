@@ -28,5 +28,5 @@ class OfflineProcessor(EngineProcessor):
             # do not record the error
             self.logger.exception('engine {0} : invalid input : {1}'.format(self.engine.name, e))
         except Exception as e:  # pylint: disable=broad-except
-            self.handle_exception(result_container, e)
+            self.handle_exception(result_container, e, start_time=start_time)
             self.logger.exception('engine {0} : exception : {1}'.format(self.engine.name, e))

@@ -11,7 +11,7 @@ import re
 import itertools
 import json
 from datetime import datetime, timedelta
-from typing import Iterable, List, Tuple, TYPE_CHECKING
+from typing import Iterable, List, NamedTuple, Tuple, TYPE_CHECKING
 
 from io import StringIO
 from codecs import getincrementalencoder
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from searx.enginelib import Engine
     from searx.results import ResultContainer
     from searx.search import SearchQuery
-    from searx.results import UnresponsiveEngine
+    from searx.results import Timing, UnresponsiveEngine
 
 VALID_LANGUAGE_CODE = re.compile(r'^[a-z]{2,3}(-[a-zA-Z]{2})?$')
 
@@ -79,6 +79,93 @@ def get_translated_errors(unresponsive_engines: "Iterable[UnresponsiveEngine]"):
         translated_errors.append((unresponsive_engine.engine, error_msg))
 
     return sorted(translated_errors, key=lambda e: e[0])
+
+
+class EngineTimingRow(NamedTuple):
+    engine_name: str
+    response_time: float | None
+    response_time_label: str | None
+    error_message: str | None
+    bar_percent: int | None
+
+
+class EngineTimingDisplay(NamedTuple):
+    rows: list[EngineTimingRow]
+    max_response_time: float | None
+    max_response_time_label: str | None
+    expanded: bool
+
+
+def format_engine_time(seconds: float) -> str:
+    if seconds <= 0:
+        return "0.0"
+    if seconds < 0.1:
+        return f"{seconds:.2f}"
+    return f"{seconds:.1f}"
+
+
+def engine_time_bar_percent(seconds: float, max_seconds: float | None) -> int:
+    if max_seconds is None or max_seconds <= 0 or seconds <= 0:
+        return 0
+    return min(100, max(0, int(round((100 * seconds) / max_seconds))))
+
+
+def _translated_error_message(unresponsive_engines: "Iterable[UnresponsiveEngine]") -> str | None:
+    translated_errors: list[str] = []
+    for _engine_name, translated_error in get_translated_errors(unresponsive_engines):
+        if translated_error not in translated_errors:
+            translated_errors.append(translated_error)
+    if not translated_errors:
+        return None
+    translated_errors.sort()
+    return ", ".join(translated_errors)
+
+
+def build_engine_timing_display(
+    timings: "Iterable[Timing]",
+    unresponsive_engines: "Iterable[UnresponsiveEngine]",
+    has_results: bool,
+) -> EngineTimingDisplay:
+    unresponsive_by_engine_name: dict[str, list["UnresponsiveEngine"]] = {}
+    for unresponsive_engine in unresponsive_engines:
+        unresponsive_by_engine_name.setdefault(unresponsive_engine.engine, []).append(unresponsive_engine)
+
+    engine_timings = list(timings)
+    max_response_time = max((timing.total for timing in engine_timings), default=None)
+    engine_names_with_response_time = {timing.engine for timing in engine_timings}
+    timed_rows = [
+        EngineTimingRow(
+            engine_name=timing.engine,
+            response_time=timing.total,
+            response_time_label=format_engine_time(timing.total),
+            error_message=_translated_error_message(unresponsive_by_engine_name.get(timing.engine, ())),
+            bar_percent=engine_time_bar_percent(timing.total, max_response_time),
+        )
+        for timing in engine_timings
+    ]
+    timed_rows.sort(key=lambda timing_row: (-(timing_row.response_time or 0.0), timing_row.engine_name))
+    rows_without_response_time = [
+        EngineTimingRow(
+            engine_name=engine_name,
+            response_time=None,
+            response_time_label=None,
+            error_message=_translated_error_message(unresponsive_by_engine_name[engine_name]),
+            bar_percent=None,
+        )
+        for engine_name in sorted(unresponsive_by_engine_name)
+        if engine_name not in engine_names_with_response_time
+    ]
+
+    timing_rows = rows_without_response_time + timed_rows
+    any_engine_succeeded = any(
+        timing_row.response_time is not None and not timing_row.error_message for timing_row in timing_rows
+    )
+    return EngineTimingDisplay(
+        rows=timing_rows,
+        max_response_time=max_response_time,
+        max_response_time_label=None if max_response_time is None else format_engine_time(max_response_time),
+        expanded=not has_results or not any_engine_succeeded,
+    )
 
 
 class CSVWriter:

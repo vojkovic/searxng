@@ -1,30 +1,36 @@
 <div id="engines_msg">
-  {% if (not results and not answers) or not max_response_time %}
-  <details class="sidebar-collapsible" open>
-    <summary class="title" id="engines_msg-title">{{ _('Messages from the search engines') }}</summary>
-  {% else %}
-  <details class="sidebar-collapsible">
-    <summary class="title" id="engines_msg-title">{{ _('Response time') }}: {{ max_response_time | round(1) }} {{ _('seconds') }}</summary>
-  {% endif %}
+  <details class="sidebar-collapsible"{% if engine_timing.expanded %} open{% endif %}>
+    <summary class="title" id="engines_msg-title">
+      {%- if engine_timing.max_response_time is not none -%}
+        {{ _('Response time') }}: {{ engine_timing.max_response_time_label }} {{ _('seconds') }}
+      {%- else -%}
+        {{ _('Messages from the search engines') }}
+      {%- endif -%}
+    </summary>
     <table class="engine-stats" id="engines_msg-table">
-      {%- for engine_name, error_type in unresponsive_engines -%}
+      {%- for timing_row in engine_timing.rows -%}
       <tr>
-        <td class="engine-name">
-          <a href="{{ url_for('stats', engine=engine_name|e) }}"
-             title="{{ _('View error logs and submit a bug report') }}">
-             {{- engine_name -}}
-          </a>
-        </td>
-        <td class="response-error">{{- error_type -}}</td>
-      </tr>
-      {%- endfor -%}
-      {%- for engine_name, response_time in timings -%}
-      <tr>
-        <td class="engine-name"><a href="{{ url_for('stats', engine=engine_name|e) }}">{{ engine_name }}</a></td>
-        <td class="response-time">
-          <div class="bar-chart-value">{{- response_time | round(1) -}}</div>
-          <div class="bar-chart-graph" aria-labelledby="{{engine_name}}_time" aria-hidden="true">
-            <div class="bar-chart-bar bar{{ (100 * response_time / max_response_time) | round | int }}"></div>
+        <td>
+          <div class="engine-timing">
+            <div class="engine-label">
+              <div class="engine-name">
+                <a href="{{ url_for('stats', engine=timing_row.engine_name|e) }}"
+                   {%- if timing_row.error_message %} title="{{ _('View error logs and submit a bug report') }}"{% endif %}>
+                   {{- timing_row.engine_name -}}
+                </a>
+              </div>
+              {%- if timing_row.error_message -%}
+              <div class="response-error">{{ timing_row.error_message }}</div>
+              {%- endif -%}
+            </div>
+            {%- if timing_row.response_time is not none -%}
+            <div class="timing-line">
+              <div class="bar-chart-value">{{ timing_row.response_time_label }}</div>
+              <div class="bar-chart-graph" aria-hidden="true">
+                <div class="bar-chart-bar{% if timing_row.error_message %} bar-error{% endif %} bar{{ timing_row.bar_percent }}"></div>
+              </div>
+            </div>
+            {%- endif -%}
           </div>
         </td>
       </tr>

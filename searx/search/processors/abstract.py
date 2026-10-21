@@ -176,11 +176,43 @@ class EngineProcessor(ABC):
 
         return init_ok
 
+    def _record_outcome_once(self, record_outcome: t.Callable[[], None]) -> None:
+        search_thread = threading.current_thread()
+        outcome_lock = getattr(search_thread, '_engine_outcome_lock', None)
+        if outcome_lock is None:
+            record_outcome()
+            return
+        with outcome_lock:
+            if getattr(search_thread, '_engine_outcome_recorded', False):
+                return
+            search_thread._engine_outcome_recorded = True  # pylint: disable=protected-access
+            record_outcome()
+
+    def record_unresponsive_timeout(self, result_container: "ResultContainer", elapsed_seconds: float) -> None:
+        result_container.add_unresponsive_engine(self.engine.name, 'timeout')
+        result_container.add_timing(self.engine.name, max(0.0, elapsed_seconds), None)
+        counter_inc('engine', self.engine.name, 'search', 'count', 'error')
+        count_error(self.engine.name, 'timeout')
+        self.logger.error('engine timeout')
+
     def handle_exception(
         self,
         result_container: "ResultContainer",
         exception_or_message: BaseException | str,
         suspend: bool = False,
+        start_time: float | None = None,
+    ):
+        def record_outcome() -> None:
+            self._record_exception(result_container, exception_or_message, suspend, start_time)
+
+        self._record_outcome_once(record_outcome)
+
+    def _record_exception(
+        self,
+        result_container: "ResultContainer",
+        exception_or_message: BaseException | str,
+        suspend: bool,
+        start_time: float | None,
     ):
         # update result_container
         if isinstance(exception_or_message, BaseException):
@@ -191,6 +223,8 @@ class EngineProcessor(ABC):
         else:
             error_message = exception_or_message
         result_container.add_unresponsive_engine(self.engine.name, error_message)
+        if start_time is not None:
+            result_container.add_timing(self.engine.name, max(0.0, default_timer() - start_time), get_time_for_thread())
         # metrics
         counter_inc('engine', self.engine.name, 'search', 'count', 'error')
         if isinstance(exception_or_message, BaseException):
@@ -227,14 +261,13 @@ class EngineProcessor(ABC):
         start_time: float,
         search_results: "list[Result | LegacyResult]|None",
     ):
-        if getattr(threading.current_thread(), '_timeout', False):
-            # the main thread is not waiting anymore
-            self.handle_exception(result_container, 'timeout', False)
-        else:
+        def record_outcome() -> None:
             # check if the engine accepted the request
             if search_results is not None:
                 self._extend_container_basic(result_container, start_time, search_results)
             self.suspended_status.resume()
+
+        self._record_outcome_once(record_outcome)
 
     def extend_container_if_suspended(self, result_container: "ResultContainer") -> bool:
         if self.suspended_status.is_suspended:

@@ -765,10 +765,11 @@ def search():
         )
     )
 
-    # engine_timings: get engine response times sorted from slowest to fastest
-    engine_timings = sorted(result_container.get_timings(), reverse=True, key=lambda e: e.total)
-    max_response_time = engine_timings[0].total if engine_timings else None
-    engine_timings_pairs = [(timing.engine, timing.total) for timing in engine_timings]
+    engine_timing = webutils.build_engine_timing_display(
+        result_container.get_timings(),
+        result_container.unresponsive_engines,
+        has_results=bool(results) or bool(result_container.answers),
+    )
 
     # search_query.lang contains the user choice (all, auto, en, ...)
     # when the user choice is "auto", search.search_query.lang contains the detected language
@@ -787,9 +788,6 @@ def search():
         infoboxes = result_container.infoboxes,
         engine_data = result_container.engine_data,
         paging = result_container.paging,
-        unresponsive_engines = webutils.get_translated_errors(
-            result_container.unresponsive_engines
-        ),
         current_locale = sxng_request.preferences.get_value("locale"),
         current_language = selected_locale,
         search_language = match_locale(
@@ -798,8 +796,7 @@ def search():
             fallback=sxng_request.preferences.get_value("language")
         ),
         timeout_limit = sxng_request.form.get('timeout_limit', None),
-        timings = engine_timings_pairs,
-        max_response_time = max_response_time
+        engine_timing = engine_timing
         # fmt: on
     )
 

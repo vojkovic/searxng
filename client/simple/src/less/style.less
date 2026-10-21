@@ -764,16 +764,74 @@ summary.title {
 }
 
 #engines_msg {
+  table.engine-stats {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .engine-timing {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(8rem, 46%);
+    column-gap: 0.75rem;
+    align-items: start;
+  }
+
+  .engine-timing:not(:has(.timing-line)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .engine-label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.1rem 0.5rem;
+    min-width: 0;
+  }
+
   .engine-name {
-    width: 10rem;
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .response-error {
     color: var(--color-error);
+    overflow-wrap: anywhere;
+    font-size: 0.85em;
+    line-height: 1.25;
+  }
+
+  .timing-line {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
   }
 
   .bar-chart-value {
+    flex: 0 0 3.2rem;
+    width: 3.2rem;
+    padding-right: 0;
+    text-align: end;
+  }
+
+  .bar-chart-graph {
+    flex: 1 1 auto;
     width: auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .bar-chart-bar {
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+
+  .bar-chart-bar.bar-error {
+    border-color: var(--color-error);
   }
 }
 
